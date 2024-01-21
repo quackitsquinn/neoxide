@@ -1,7 +1,7 @@
 use std::fs::File;
 
 use rand::Rng;
-use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum, EventPump, Sdl};
+use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum, EventPump, Sdl, sys::KeyCode};
 
 use crate::{
     constant::{SCREEN_DATA_OFFSET, TEXTURE_SIZE, WINDOW_SIZE},
@@ -24,13 +24,22 @@ macro_rules! get_screen_slice {
         &$mem[SCREEN_DATA_OFFSET..SCREEN_DATA_OFFSET + (TEXTURE_SIZE.0 * TEXTURE_SIZE.1) as usize]
     };
 }
+/// Create a keydown event with the specified key.
+macro_rules! keydown {
+    ($key:path) => {
+        Event::KeyDown {
+            keycode: Some($key),
+            ..
+        }
+    };
+}
 
 pub struct NES {
-    cpu: CPU,
+    pub cpu: CPU,
     screen: Screen,
     // keep sdl so we can do event stuff
     sdl: sdl2::Sdl,
-    // TODO: other event handling stuff
+    is_cpu_running: bool,
 }
 
 impl NES {
@@ -41,6 +50,7 @@ impl NES {
             sdl,
             cpu: CPU::new(),
             screen,
+            is_cpu_running: false,
         }
     }
     // because we currently dont have any .rom loading, we just load a raw array of 6502 pgrm bytes
@@ -78,14 +88,13 @@ impl NES {
             TEXTURE_SIZE.1
         );
         let mut event_pump = self.sdl.event_pump().unwrap();
-        let mut random = rand::thread_rng();
+        self.is_cpu_running = true;
         'running: loop {
             if self.handle_events(&mut event_pump) {
                 break 'running;
             }
-            self.cpu.write(0xfe, random.gen_range(1..16));
-            if !exec_op(&mut self.cpu) {
-                break 'running;
+            if self.is_cpu_running {
+                self.cpu.step(true);
             }
             // cb gets called before render for debug purposes
             cb(&mut self.cpu);
@@ -109,22 +118,12 @@ impl NES {
                 _ => false,
             };
             match event {
-                Event::KeyDown {
-                    keycode: Some(Keycode::Down),
-                    ..
-                } => self.cpu.write(0xff, 0x73),
-                Event::KeyDown {
-                    keycode: Some(Keycode::Up),
-                    ..
-                } => self.cpu.write(0xff, 0x77),
-                Event::KeyDown {
-                    keycode: Some(Keycode::Left),
-                    ..
-                } => self.cpu.write(0xff, 0x61),
-                Event::KeyDown {
-                    keycode: Some(Keycode::Right),
-                    ..
-                } => self.cpu.write(0xff, 0x64),
+                keydown!(Keycode::Down) => self.cpu.write(0xff, 0x73),
+                keydown!(Keycode::Up) => self.cpu.write(0xff, 0x77),
+                keydown!(Keycode::Left) => self.cpu.write(0xff, 0x61),
+                keydown!(Keycode::Right) => self.cpu.write(0xff, 0x64),
+                keydown!(Keycode::Space) => self.is_cpu_running = !self.is_cpu_running,
+                keydown!(Keycode::T) => self.cpu.step(true),
                 _ => {}
             }
         }
