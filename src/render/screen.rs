@@ -45,9 +45,9 @@ impl Screen {
     pub fn should_update(&mut self, pixeldata: &[u8]) -> bool {
         // soo idk how fast build in equality checking is, but this is probably faster than what i would write
         if self.last_data == pixeldata {
-            self.last_data = pixeldata.to_vec();
             return false;
         }
+        self.last_data = pixeldata.to_vec();
         true
     }
 

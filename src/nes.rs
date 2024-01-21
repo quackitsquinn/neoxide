@@ -90,12 +90,12 @@ impl NES {
             // cb gets called before render for debug purposes
             cb(&mut self.cpu);
             let pixeldata = get_screen_slice!(self.cpu.mem.mem);
-            //if self.screen.should_update(pixeldata) {
-            self.screen.update(pixeldata);
-            self.screen.render(&mut texture, pixeldata);
-            canvas.copy(&texture, None, None).unwrap();
-            canvas.present();
-            //}
+            if self.screen.should_update(pixeldata) {
+                self.screen.update(pixeldata);
+                self.screen.render(&mut texture, pixeldata);
+                canvas.copy(&texture, None, None).unwrap();
+                canvas.present();
+            }
         }
         self.cpu.mem.dump(&mut File::create("memdump.bin").unwrap());
     }
